@@ -3,6 +3,7 @@ import MapKit
 
 struct SearchView: View {
     @ObservedObject var viewModel: RoutePlannerViewModel
+    @FocusState private var isSearchFieldFocused: Bool
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -15,10 +16,10 @@ struct SearchView: View {
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.45),
+                    Color.black.opacity(0.58),
                     Color.clear,
                     Color.clear,
-                    Color.black.opacity(0.28)
+                    Color.black.opacity(0.32)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -44,10 +45,12 @@ struct SearchView: View {
             Text("RouteFuel")
                 .font(.system(size: 34, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
+                .shadow(color: Color.black.opacity(0.35), radius: 8, y: 4)
 
             Text("Select a start, pick a destination, then calculate the route.")
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.88))
+                .shadow(color: Color.black.opacity(0.28), radius: 6, y: 3)
 
             plannerCard
         }
@@ -60,7 +63,7 @@ struct SearchView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(viewModel.activeSearchTarget == .origin ? "Search Start" : "Search Destination")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.82))
+                    .foregroundStyle(.secondary)
 
                 HStack(spacing: 10) {
                     TextField(
@@ -69,18 +72,18 @@ struct SearchView: View {
                     )
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .focused($isSearchFieldFocused)
+                    .onSubmit {
+                        submitActiveSearch()
+                    }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
-                    .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(Color.black.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .accessibilityIdentifier(viewModel.activeSearchTarget == .origin ? "origin-query-field" : "destination-query-field")
 
                     Button(viewModel.activeSearchTarget == .origin ? "Search From" : "Search To") {
-                        switch viewModel.activeSearchTarget {
-                        case .origin:
-                            Task { await viewModel.submitOriginSearch() }
-                        case .destination:
-                            Task { await viewModel.submitDestinationSearch() }
-                        }
+                        submitActiveSearch()
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(red: 0.12, green: 0.43, blue: 0.31))
@@ -117,7 +120,7 @@ struct SearchView: View {
             .accessibilityIdentifier("origin-current-location-button")
 
             Divider()
-                .overlay(Color.white.opacity(0.16))
+                .overlay(Color.black.opacity(0.08))
 
             Button {
                 viewModel.activateSearchTarget(.destination)
@@ -136,22 +139,22 @@ struct SearchView: View {
     private func selectionRow(title: String, value: String, detail: String, isSelected: Bool) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Circle()
-                .fill(isSelected ? Color.green : Color.white.opacity(0.28))
+                .fill(isSelected ? Color.green : Color.black.opacity(0.16))
                 .frame(width: 10, height: 10)
                 .padding(.top, 6)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title.uppercased())
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(.secondary)
 
                 Text(value)
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
 
                 Text(detail)
                     .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -197,6 +200,7 @@ struct SearchView: View {
                 HStack(spacing: 12) {
                     ForEach(viewModel.visibleSearchResults) { result in
                         Button {
+                            isSearchFieldFocused = false
                             viewModel.selectSearchResult(result)
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
@@ -258,6 +262,18 @@ struct SearchView: View {
     private var canSearchActiveTarget: Bool {
         let query = viewModel.activeSearchTarget == .origin ? viewModel.originQuery : viewModel.destinationQuery
         return !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.destinationSearchLoading
+    }
+
+    private func submitActiveSearch() {
+        guard canSearchActiveTarget else { return }
+        isSearchFieldFocused = false
+
+        switch viewModel.activeSearchTarget {
+        case .origin:
+            Task { await viewModel.submitOriginSearch() }
+        case .destination:
+            Task { await viewModel.submitDestinationSearch() }
+        }
     }
 
     private func statusCard(_ text: String) -> some View {
@@ -330,6 +346,12 @@ private extension View {
         self
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(Color(.systemBackground).opacity(0.78), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.16), radius: 18, y: 8)
     }
 }

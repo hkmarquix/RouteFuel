@@ -19,7 +19,12 @@ struct BlockingMessageCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(Color(.systemBackground).opacity(0.84), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.orange.opacity(0.22), lineWidth: 1)
+        )
         .accessibilityIdentifier("blocking-message-card")
     }
 }

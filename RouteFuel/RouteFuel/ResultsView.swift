@@ -12,10 +12,10 @@ struct ResultsView: View {
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.38),
+                    Color.black.opacity(0.52),
                     Color.clear,
                     Color.clear,
-                    Color.black.opacity(0.25)
+                    Color.black.opacity(0.3)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -52,10 +52,12 @@ struct ResultsView: View {
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.trailing)
                     .lineLimit(2)
+                    .shadow(color: Color.black.opacity(0.35), radius: 8, y: 4)
 
                 Text("\(trip.route.distanceText) • \(trip.route.durationText)")
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.82))
+                    .shadow(color: Color.black.opacity(0.28), radius: 6, y: 3)
             }
         }
     }
@@ -255,6 +257,12 @@ private extension View {
         self
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(Color(.systemBackground).opacity(0.78), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .stroke(Color.white.opacity(0.28), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.16), radius: 18, y: 8)
     }
 }
