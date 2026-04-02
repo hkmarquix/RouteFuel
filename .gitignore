@@ -1,0 +1,8 @@
+.DS_Store
+
+# Xcode user-specific files
+xcuserdata/
+*.xcuserstate
+
+# Local scratch files
+temp/
