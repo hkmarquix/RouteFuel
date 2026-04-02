@@ -474,7 +474,57 @@ final class LiveRouteService: RouteServicing {
             timeoutInterval: requestTimeoutSeconds
         )
 
-        return try RouteResponseValidator.validate(payload: payload, origin: origin, destination: destination)
+        let backendRoute = try RouteResponseValidator.validate(payload: payload, origin: origin, destination: destination)
+
+        guard let displayRoute = try await calculateDisplayRoute(origin: origin, destination: destination) else {
+            return backendRoute
+        }
+
+        return Route(
+            id: backendRoute.id,
+            origin: backendRoute.origin,
+            destination: backendRoute.destination,
+            distanceMeters: displayRoute.distanceMeters,
+            durationSeconds: displayRoute.durationSeconds,
+            polyline: displayRoute.polyline,
+            path: displayRoute.path,
+            bounds: displayRoute.bounds
+        )
+    }
+
+    private func calculateDisplayRoute(origin: Coordinate, destination: DestinationSearchResult) async throws -> Route? {
+        let request = MKDirections.Request()
+        request.source = MKMapItem(placemark: MKPlacemark(coordinate: origin.locationCoordinate))
+        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: destination.coordinate.locationCoordinate))
+        request.transportType = .automobile
+        request.requestsAlternateRoutes = false
+
+        let response: MKDirections.Response
+        do {
+            response = try await MKDirections(request: request).calculate()
+        } catch {
+            return nil
+        }
+
+        guard let route = response.routes.first else {
+            return nil
+        }
+
+        let path = route.polyline.coordinates
+        guard path.count >= 2 else {
+            return nil
+        }
+
+        return Route(
+            id: "",
+            origin: origin,
+            destination: destination,
+            distanceMeters: max(1, Int(route.distance.rounded())),
+            durationSeconds: max(1, Int(route.expectedTravelTime.rounded())),
+            polyline: PolylineCodec.encode(path),
+            path: path,
+            bounds: RouteBounds(mapRect: route.polyline.boundingMapRect)
+        )
     }
 }
 
@@ -554,6 +604,35 @@ final class APIClient {
 struct ValidatedPayload {
     let object: [String: Any]
     let requestId: String?
+}
+
+private extension MKPolyline {
+    var coordinates: [Coordinate] {
+        var mapKitCoordinates = Array(
+            repeating: CLLocationCoordinate2D(latitude: 0, longitude: 0),
+            count: pointCount
+        )
+        getCoordinates(&mapKitCoordinates, range: NSRange(location: 0, length: pointCount))
+        return mapKitCoordinates.map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) }
+    }
+}
+
+private extension RouteBounds {
+    init(mapRect: MKMapRect) {
+        let northEastPoint = MKMapPoint(x: mapRect.maxX, y: mapRect.minY)
+        let southWestPoint = MKMapPoint(x: mapRect.minX, y: mapRect.maxY)
+
+        self.init(
+            northEast: Coordinate(
+                latitude: northEastPoint.coordinate.latitude,
+                longitude: northEastPoint.coordinate.longitude
+            ),
+            southWest: Coordinate(
+                latitude: southWestPoint.coordinate.latitude,
+                longitude: southWestPoint.coordinate.longitude
+            )
+        )
+    }
 }
 
 enum APIErrorEnvelopeValidator {
