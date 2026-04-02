@@ -137,10 +137,12 @@ final class RoutePlannerViewModel: ObservableObject {
     func selectOrigin(_ result: DestinationSearchResult) {
         originUsesCurrentLocation = false
         selectedOrigin = result
+        originQuery = ""
     }
 
     func selectDestination(_ result: DestinationSearchResult) {
         selectedDestination = result
+        destinationQuery = ""
     }
 
     func selectSearchResult(_ result: DestinationSearchResult) {
