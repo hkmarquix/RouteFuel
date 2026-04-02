@@ -232,6 +232,14 @@ private struct RouteMapCard: View {
             }
         }
         .mapStyle(.standard(elevation: .realistic))
+        .onChange(of: selectedStop) { _, newValue in
+            guard let newValue else {
+                position = .region(RouteMapViewport.region(for: route.path))
+                return
+            }
+
+            position = .region(Self.region(focusedOn: newValue.coordinate))
+        }
         .accessibilityIdentifier("route-map")
     }
 
@@ -249,6 +257,13 @@ private struct RouteMapCard: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(color, in: Capsule())
+    }
+
+    private static func region(focusedOn coordinate: Coordinate) -> MKCoordinateRegion {
+        MKCoordinateRegion(
+            center: coordinate.locationCoordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.16, longitudeDelta: 0.16)
+        )
     }
 }
 
