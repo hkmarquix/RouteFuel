@@ -87,8 +87,7 @@ struct FuelStop: Identifiable, Equatable, Sendable {
     let isBestStop: Bool
 
     var priceText: String {
-        let pounds = Decimal(priceMinorUnits) / 100
-        return pounds.formatted(.currency(code: "GBP").precision(.fractionLength(2)))
+        "\(priceMinorUnits)p"
     }
 
     var detourText: String {
