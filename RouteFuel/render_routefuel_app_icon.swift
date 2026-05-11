@@ -17,114 +17,121 @@ func roundedRectPath(_ rect: CGRect, radius: CGFloat) -> NSBezierPath {
 
 func drawBackground() {
     let rect = CGRect(origin: .zero, size: size)
-    let gradient = NSGradient(colors: [
-        color(0x103B66),
-        color(0x0F6C7A),
-        color(0x34B3A0)
-    ])!
-    gradient.draw(in: rect, angle: -35)
-
-    color(0xA6F0E3, alpha: 0.10).setFill()
-    NSBezierPath(ovalIn: CGRect(x: 104, y: 710, width: 252, height: 252)).fill()
-
-    color(0x0A1F3D, alpha: 0.14).setFill()
-    NSBezierPath(ovalIn: CGRect(x: 694, y: 86, width: 250, height: 250)).fill()
+    color(0xFFFFFF).setFill()
+    NSBezierPath(rect: rect).fill()
 }
 
 func drawSymbol() {
-    NSGraphicsContext.saveGraphicsState()
-    let shadow = NSShadow()
-    shadow.shadowColor = color(0x062247, alpha: 0.22)
-    shadow.shadowBlurRadius = 34
-    shadow.shadowOffset = CGSize(width: 0, height: -10)
-    shadow.set()
+    let pinOutline = NSBezierPath()
+    pinOutline.lineWidth = 42
+    pinOutline.lineCapStyle = .round
+    pinOutline.lineJoinStyle = .round
+    pinOutline.move(to: CGPoint(x: 282, y: 258))
+    pinOutline.curve(to: CGPoint(x: 742, y: 258),
+                     controlPoint1: CGPoint(x: 360, y: 142),
+                     controlPoint2: CGPoint(x: 664, y: 142))
+    pinOutline.curve(to: CGPoint(x: 650, y: 568),
+                     controlPoint1: CGPoint(x: 742, y: 386),
+                     controlPoint2: CGPoint(x: 724, y: 482))
+    pinOutline.curve(to: CGPoint(x: 512, y: 836),
+                     controlPoint1: CGPoint(x: 612, y: 664),
+                     controlPoint2: CGPoint(x: 560, y: 756))
+    pinOutline.curve(to: CGPoint(x: 374, y: 568),
+                     controlPoint1: CGPoint(x: 464, y: 756),
+                     controlPoint2: CGPoint(x: 412, y: 664))
+    pinOutline.curve(to: CGPoint(x: 282, y: 258),
+                     controlPoint1: CGPoint(x: 300, y: 482),
+                     controlPoint2: CGPoint(x: 282, y: 386))
+    color(0x2F6EAE).setStroke()
+    pinOutline.stroke()
 
-    let pumpGradient = NSGradient(colors: [color(0xFFF8EE), color(0xECF5F1)])!
-    let pumpPath = roundedRectPath(CGRect(x: 250, y: 202, width: 470, height: 620), radius: 132)
-    pumpGradient.draw(in: pumpPath, angle: -90)
+    let road = NSBezierPath()
+    road.move(to: CGPoint(x: 512, y: 836))
+    road.curve(to: CGPoint(x: 402, y: 612),
+               controlPoint1: CGPoint(x: 468, y: 770),
+               controlPoint2: CGPoint(x: 426, y: 688))
+    road.curve(to: CGPoint(x: 362, y: 486),
+               controlPoint1: CGPoint(x: 384, y: 574),
+               controlPoint2: CGPoint(x: 374, y: 524))
+    road.line(to: CGPoint(x: 418, y: 486))
+    road.curve(to: CGPoint(x: 452, y: 598),
+               controlPoint1: CGPoint(x: 424, y: 526),
+               controlPoint2: CGPoint(x: 434, y: 568))
+    road.curve(to: CGPoint(x: 534, y: 780),
+               controlPoint1: CGPoint(x: 470, y: 658),
+               controlPoint2: CGPoint(x: 506, y: 730))
+    road.line(to: CGPoint(x: 512, y: 836))
+    road.close()
 
-    NSGraphicsContext.restoreGraphicsState()
+    let roadMirror = NSBezierPath()
+    roadMirror.move(to: CGPoint(x: 512, y: 836))
+    roadMirror.curve(to: CGPoint(x: 622, y: 612),
+                     controlPoint1: CGPoint(x: 556, y: 770),
+                     controlPoint2: CGPoint(x: 598, y: 688))
+    roadMirror.curve(to: CGPoint(x: 662, y: 486),
+                     controlPoint1: CGPoint(x: 640, y: 574),
+                     controlPoint2: CGPoint(x: 650, y: 524))
+    roadMirror.line(to: CGPoint(x: 606, y: 486))
+    roadMirror.curve(to: CGPoint(x: 572, y: 598),
+                     controlPoint1: CGPoint(x: 600, y: 526),
+                     controlPoint2: CGPoint(x: 590, y: 568))
+    roadMirror.curve(to: CGPoint(x: 490, y: 780),
+                     controlPoint1: CGPoint(x: 554, y: 658),
+                     controlPoint2: CGPoint(x: 518, y: 730))
+    roadMirror.line(to: CGPoint(x: 512, y: 836))
+    roadMirror.close()
 
-    color(0x0D5468, alpha: 0.10).setStroke()
-    pumpPath.lineWidth = 4
-    pumpPath.stroke()
+    color(0x24314B).setFill()
+    road.fill()
+    roadMirror.fill()
 
-    let nozzleTop = NSBezierPath()
-    nozzleTop.lineWidth = 26
-    nozzleTop.lineCapStyle = .round
-    nozzleTop.move(to: CGPoint(x: 600, y: 692))
-    nozzleTop.line(to: CGPoint(x: 676, y: 692))
-    color(0xFFBE67).setStroke()
-    nozzleTop.stroke()
+    let centerLine = NSBezierPath()
+    centerLine.lineWidth = 14
+    centerLine.lineCapStyle = .round
+    centerLine.move(to: CGPoint(x: 512, y: 764))
+    centerLine.curve(to: CGPoint(x: 512, y: 692),
+                     controlPoint1: CGPoint(x: 512, y: 744),
+                     controlPoint2: CGPoint(x: 512, y: 716))
+    centerLine.move(to: CGPoint(x: 512, y: 652))
+    centerLine.curve(to: CGPoint(x: 520, y: 604),
+                     controlPoint1: CGPoint(x: 514, y: 638),
+                     controlPoint2: CGPoint(x: 518, y: 620))
+    color(0xFFFFFF).setStroke()
+    centerLine.stroke()
+
+    let pump = roundedRectPath(CGRect(x: 416, y: 310, width: 132, height: 178), radius: 18)
+    color(0x17C493).setFill()
+    pump.fill()
+
+    color(0xFFFFFF).setFill()
+    roundedRectPath(CGRect(x: 440, y: 432, width: 84, height: 40), radius: 8).fill()
+
+    let pumpBase = NSBezierPath()
+    pumpBase.lineWidth = 14
+    pumpBase.lineCapStyle = .round
+    pumpBase.move(to: CGPoint(x: 402, y: 296))
+    pumpBase.line(to: CGPoint(x: 558, y: 296))
+    color(0x17C493).setStroke()
+    pumpBase.stroke()
 
     let hose = NSBezierPath()
-    hose.lineWidth = 34
+    hose.lineWidth = 14
     hose.lineCapStyle = .round
     hose.lineJoinStyle = .round
-    hose.move(to: CGPoint(x: 720, y: 644))
-    hose.curve(to: CGPoint(x: 796, y: 554),
-               controlPoint1: CGPoint(x: 764, y: 640),
-               controlPoint2: CGPoint(x: 796, y: 612))
-    hose.curve(to: CGPoint(x: 748, y: 392),
-               controlPoint1: CGPoint(x: 796, y: 488),
-               controlPoint2: CGPoint(x: 782, y: 430))
-    hose.line(to: CGPoint(x: 704, y: 330))
-    color(0x163F69, alpha: 0.92).setStroke()
+    hose.move(to: CGPoint(x: 548, y: 438))
+    hose.curve(to: CGPoint(x: 602, y: 374),
+               controlPoint1: CGPoint(x: 580, y: 432),
+               controlPoint2: CGPoint(x: 602, y: 412))
+    hose.line(to: CGPoint(x: 594, y: 346))
+    color(0x17C493).setStroke()
     hose.stroke()
 
     let nozzle = NSBezierPath()
-    nozzle.lineWidth = 24
+    nozzle.lineWidth = 12
     nozzle.lineCapStyle = .round
-    nozzle.move(to: CGPoint(x: 694, y: 320))
-    nozzle.line(to: CGPoint(x: 734, y: 290))
-    color(0xFFBE67).setStroke()
+    nozzle.move(to: CGPoint(x: 590, y: 342))
+    nozzle.line(to: CGPoint(x: 574, y: 326))
     nozzle.stroke()
-
-    let routeLine = NSBezierPath()
-    routeLine.lineWidth = 62
-    routeLine.lineCapStyle = .round
-    routeLine.lineJoinStyle = .round
-    routeLine.move(to: CGPoint(x: 378, y: 640))
-    routeLine.curve(to: CGPoint(x: 426, y: 558),
-                    controlPoint1: CGPoint(x: 378, y: 606),
-                    controlPoint2: CGPoint(x: 394, y: 576))
-    routeLine.curve(to: CGPoint(x: 570, y: 530),
-                    controlPoint1: CGPoint(x: 454, y: 524),
-                    controlPoint2: CGPoint(x: 516, y: 514))
-    routeLine.curve(to: CGPoint(x: 530, y: 414),
-                    controlPoint1: CGPoint(x: 608, y: 542),
-                    controlPoint2: CGPoint(x: 594, y: 450))
-    routeLine.curve(to: CGPoint(x: 430, y: 334),
-                    controlPoint1: CGPoint(x: 500, y: 374),
-                    controlPoint2: CGPoint(x: 468, y: 346))
-    color(0x1F8AA2).setStroke()
-    routeLine.stroke()
-
-    let roadStripe = NSBezierPath()
-    roadStripe.lineWidth = 18
-    roadStripe.lineCapStyle = .round
-    roadStripe.move(to: CGPoint(x: 380, y: 626))
-    roadStripe.curve(to: CGPoint(x: 418, y: 560),
-                     controlPoint1: CGPoint(x: 380, y: 600),
-                     controlPoint2: CGPoint(x: 392, y: 576))
-    roadStripe.curve(to: CGPoint(x: 560, y: 532),
-                     controlPoint1: CGPoint(x: 446, y: 530),
-                     controlPoint2: CGPoint(x: 506, y: 522))
-    roadStripe.curve(to: CGPoint(x: 520, y: 422),
-                     controlPoint1: CGPoint(x: 596, y: 540),
-                     controlPoint2: CGPoint(x: 582, y: 452))
-    roadStripe.curve(to: CGPoint(x: 436, y: 358),
-                     controlPoint1: CGPoint(x: 494, y: 392),
-                     controlPoint2: CGPoint(x: 468, y: 372))
-    color(0xFFFFFF, alpha: 0.92).setStroke()
-    roadStripe.stroke()
-
-    color(0xFF7F32).setFill()
-    NSBezierPath(ovalIn: CGRect(x: 330, y: 610, width: 94, height: 94)).fill()
-
-    let centerDot = NSBezierPath(ovalIn: CGRect(x: 359, y: 639, width: 36, height: 36))
-    color(0xFFF8EF).setFill()
-    centerDot.fill()
 }
 
 let image = NSImage(size: size)
