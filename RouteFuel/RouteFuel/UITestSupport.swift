@@ -108,7 +108,7 @@ actor UITestMapsLauncher: MapsLaunching {
         true
     }
 
-    func openInGoogleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool {
+    func openInGoogleMaps(origin: Coordinate?, stop: FuelStop, destination: DestinationSearchResult) async -> Bool {
         attemptCount += 1
 
         switch scenario {

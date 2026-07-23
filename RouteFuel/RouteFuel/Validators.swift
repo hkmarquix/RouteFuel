@@ -27,26 +27,20 @@ enum DestinationSearchValidator {
 }
 
 enum GoogleMapsDeepLinkBuilder {
-    static func url(waypoint: Coordinate, destination: Coordinate) -> URL? {
-        var components = URLComponents()
-        components.scheme = "comgooglemaps"
-        components.host = ""
-        components.percentEncodedQuery = [
-            "saddr=Current%20Location",
-            "daddr=\(waypoint.googleMapsValue)+to:\(destination.googleMapsValue)",
-            "directionsmode=driving"
-        ].joined(separator: "&")
-        return components.url
+    static func url(origin: Coordinate? = nil, waypoint: Coordinate, destination: Coordinate) -> URL? {
+        let saddr = origin.map { $0.googleMapsValue } ?? "Current%20Location"
+        return URL(string: "comgooglemaps://?saddr=\(saddr)&daddr=\(waypoint.googleMapsValue)+to:\(destination.googleMapsValue)&directionsmode=driving")
     }
 
-    static func webURL(waypoint: Coordinate, destination: Coordinate) -> URL? {
+    static func webURL(origin: Coordinate? = nil, waypoint: Coordinate, destination: Coordinate) -> URL? {
+        let originValue = origin.map { $0.googleMapsValue } ?? "Current Location"
         var components = URLComponents()
         components.scheme = "https"
         components.host = "www.google.com"
         components.path = "/maps/dir/"
         components.queryItems = [
             URLQueryItem(name: "api", value: "1"),
-            URLQueryItem(name: "origin", value: "Current Location"),
+            URLQueryItem(name: "origin", value: originValue),
             URLQueryItem(name: "destination", value: destination.googleMapsValue),
             URLQueryItem(name: "waypoints", value: waypoint.googleMapsValue),
             URLQueryItem(name: "travelmode", value: "driving")

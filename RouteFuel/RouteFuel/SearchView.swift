@@ -57,39 +57,116 @@ struct SearchView: View {
     }
 
     private var plannerCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            routeSelectionCard
+        VStack(alignment: .leading, spacing: 0) {
+            // FROM row
+            Button {
+                viewModel.activateSearchTarget(.origin)
+            } label: {
+                selectionRow(
+                    title: "From",
+                    value: viewModel.originUsesCurrentLocation ? "Current location" : (viewModel.selectedOrigin?.label ?? "Select a start"),
+                    detail: viewModel.originUsesCurrentLocation ? "Current location selected" : (viewModel.selectedOrigin == nil ? "Tap to search or use current location" : "Custom start selected"),
+                    isSelected: viewModel.originUsesCurrentLocation || viewModel.selectedOrigin != nil
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("from-row-button")
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 10)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(viewModel.activeSearchTarget == .origin ? "Search Start" : "Search Destination")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 10) {
-                    TextField(
-                        viewModel.activeSearchTarget == .origin ? "Search a starting location" : "Search a United Kingdom destination",
-                        text: activeQueryBinding
-                    )
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                    .focused($isSearchFieldFocused)
-                    .onSubmit {
-                        submitActiveSearch()
+            // Origin search — shown inline under FROM
+            if viewModel.activeSearchTarget == .origin {
+                VStack(alignment: .leading, spacing: 8) {
+                    Button {
+                        viewModel.selectCurrentLocation()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "location.fill")
+                                .font(.caption.weight(.semibold))
+                            Text("Use Current Location")
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .foregroundStyle(Color(red: 0.12, green: 0.43, blue: 0.31))
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .background(Color.black.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .accessibilityIdentifier(viewModel.activeSearchTarget == .origin ? "origin-query-field" : "destination-query-field")
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("use-current-location-button")
 
-                    Button(viewModel.activeSearchTarget == .origin ? "Search From" : "Search To") {
-                        submitActiveSearch()
+                    HStack(spacing: 10) {
+                        TextField("Search a starting location", text: originQueryBinding)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .submitLabel(.search)
+                            .focused($isSearchFieldFocused)
+                            .onSubmit { Task { await viewModel.submitOriginSearch() } }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(Color.black.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .accessibilityIdentifier("origin-query-field")
+
+                        Button("Search From") {
+                            isSearchFieldFocused = false
+                            Task { await viewModel.submitOriginSearch() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Color(red: 0.12, green: 0.43, blue: 0.31))
+                        .disabled(!canSubmitOriginSearch)
+                        .accessibilityIdentifier("origin-search-button")
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+            }
+
+            Divider()
+                .overlay(Color.black.opacity(0.08))
+                .padding(.horizontal, 16)
+
+            // TO row
+            Button {
+                viewModel.activateSearchTarget(.destination)
+            } label: {
+                selectionRow(
+                    title: "To",
+                    value: viewModel.selectedDestination?.label ?? "Select a destination",
+                    detail: viewModel.selectedDestination == nil ? "Tap to search for a destination" : "Destination selected",
+                    isSelected: viewModel.selectedDestination != nil
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, viewModel.activeSearchTarget == .destination ? 10 : 16)
+
+            // Destination search — shown inline under TO
+            if viewModel.activeSearchTarget == .destination {
+                HStack(spacing: 10) {
+                    TextField("Search a United Kingdom destination", text: destinationQueryBinding)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .focused($isSearchFieldFocused)
+                        .onSubmit { Task { await viewModel.submitDestinationSearch() } }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .accessibilityIdentifier("destination-query-field")
+
+                    Button("Search To") {
+                        isSearchFieldFocused = false
+                        Task { await viewModel.submitDestinationSearch() }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(red: 0.12, green: 0.43, blue: 0.31))
-                    .disabled(!canSearchActiveTarget)
+                    .disabled(!canSubmitDestinationSearch)
+                    .accessibilityIdentifier("destination-search-button")
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
+
+            Divider()
+                .overlay(Color.black.opacity(0.08))
 
             Button("Calculate Route") {
                 Task { await viewModel.calculateRoute() }
@@ -98,42 +175,9 @@ struct SearchView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!viewModel.canCalculateRoute)
             .accessibilityIdentifier("calculate-route-button")
+            .padding(16)
         }
-        .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-
-    private var routeSelectionCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button {
-                viewModel.activateSearchTarget(.origin)
-                viewModel.selectCurrentLocation()
-            } label: {
-                selectionRow(
-                    title: "From",
-                    value: viewModel.originUsesCurrentLocation ? "Current location" : (viewModel.selectedOrigin?.label ?? "Select a start"),
-                    detail: viewModel.originUsesCurrentLocation ? "Selected start point" : (viewModel.selectedOrigin == nil ? "Search and select a start location" : "Custom start selected"),
-                    isSelected: viewModel.originUsesCurrentLocation || viewModel.selectedOrigin != nil
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("origin-current-location-button")
-
-            Divider()
-                .overlay(Color.black.opacity(0.08))
-
-            Button {
-                viewModel.activateSearchTarget(.destination)
-            } label: {
-                selectionRow(
-                    title: "To",
-                    value: viewModel.selectedDestination?.label ?? "Select a destination",
-                    detail: viewModel.selectedDestination == nil ? "Search and select a destination" : "Destination selected",
-                    isSelected: viewModel.selectedDestination != nil
-                )
-            }
-            .buttonStyle(.plain)
-        }
     }
 
     private func selectionRow(title: String, value: String, detail: String, isSelected: Bool) -> some View {
@@ -243,37 +287,26 @@ struct SearchView: View {
         .panelStyle()
     }
 
-    private var activeQueryBinding: Binding<String> {
+    private var originQueryBinding: Binding<String> {
         Binding(
-            get: {
-                viewModel.activeSearchTarget == .origin ? viewModel.originQuery : viewModel.destinationQuery
-            },
-            set: { newValue in
-                switch viewModel.activeSearchTarget {
-                case .origin:
-                    viewModel.originQueryChanged(newValue)
-                case .destination:
-                    viewModel.destinationQueryChanged(newValue)
-                }
-            }
+            get: { viewModel.originQuery },
+            set: { viewModel.originQueryChanged($0) }
         )
     }
 
-    private var canSearchActiveTarget: Bool {
-        let query = viewModel.activeSearchTarget == .origin ? viewModel.originQuery : viewModel.destinationQuery
-        return !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.destinationSearchLoading
+    private var destinationQueryBinding: Binding<String> {
+        Binding(
+            get: { viewModel.destinationQuery },
+            set: { viewModel.destinationQueryChanged($0) }
+        )
     }
 
-    private func submitActiveSearch() {
-        guard canSearchActiveTarget else { return }
-        isSearchFieldFocused = false
+    private var canSubmitOriginSearch: Bool {
+        !viewModel.originQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.destinationSearchLoading
+    }
 
-        switch viewModel.activeSearchTarget {
-        case .origin:
-            Task { await viewModel.submitOriginSearch() }
-        case .destination:
-            Task { await viewModel.submitDestinationSearch() }
-        }
+    private var canSubmitDestinationSearch: Bool {
+        !viewModel.destinationQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.destinationSearchLoading
     }
 
     private func statusCard(_ text: String) -> some View {

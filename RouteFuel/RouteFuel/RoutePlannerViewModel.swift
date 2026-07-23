@@ -24,6 +24,7 @@ final class RoutePlannerViewModel: ObservableObject {
     private let dependencies: AppDependencies
     private var latestSubmittedSearch: (target: SearchTarget, query: String)?
     private var lastOrigin: Coordinate?
+    private var lastOriginIsCurrentLocation = true
     private var lastFuelStopRouteID: String?
 
     init(dependencies: AppDependencies) {
@@ -205,6 +206,7 @@ final class RoutePlannerViewModel: ObservableObject {
 
     private func resolveOrigin() async throws -> Coordinate {
         if originUsesCurrentLocation {
+            lastOriginIsCurrentLocation = true
             return try await dependencies.locationService.requestCurrentLocation()
         }
 
@@ -212,6 +214,7 @@ final class RoutePlannerViewModel: ObservableObject {
             throw LocationServiceError.unavailable
         }
 
+        lastOriginIsCurrentLocation = false
         return selectedOrigin.coordinate
     }
 
@@ -294,8 +297,9 @@ final class RoutePlannerViewModel: ObservableObject {
         blockingMessage = nil
         googleMapsOpening = true
 
+        let googleMapsOrigin: Coordinate? = lastOriginIsCurrentLocation ? nil : origin
         let success = await dependencies.mapsLauncher.openInGoogleMaps(
-            origin: origin,
+            origin: googleMapsOrigin,
             stop: stop,
             destination: tripPlan.route.destination
         )

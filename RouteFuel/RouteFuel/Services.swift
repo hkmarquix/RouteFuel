@@ -23,7 +23,7 @@ protocol LocationServicing {
 protocol MapsLaunching {
     var canOpenGoogleMaps: Bool { get async }
     func openInAppleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool
-    func openInGoogleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool
+    func openInGoogleMaps(origin: Coordinate?, stop: FuelStop, destination: DestinationSearchResult) async -> Bool
 }
 
 protocol ClientLogging {
@@ -291,6 +291,7 @@ struct GoogleMapsLauncher: MapsLaunching {
     var canOpenGoogleMaps: Bool {
         get async {
             guard let appURL = GoogleMapsDeepLinkBuilder.url(
+                origin: nil,
                 waypoint: Coordinate(lat: 0, lng: 0),
                 destination: Coordinate(lat: 0, lng: 0)
             ) else {
@@ -320,12 +321,14 @@ struct GoogleMapsLauncher: MapsLaunching {
     }
 
     @MainActor
-    func openInGoogleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool {
+    func openInGoogleMaps(origin: Coordinate?, stop: FuelStop, destination: DestinationSearchResult) async -> Bool {
         guard let appURL = GoogleMapsDeepLinkBuilder.url(
+            origin: origin,
             waypoint: stop.coordinate,
             destination: destination.coordinate
         ),
         let webURL = GoogleMapsDeepLinkBuilder.webURL(
+            origin: origin,
             waypoint: stop.coordinate,
             destination: destination.coordinate
         ) else {
@@ -343,7 +346,7 @@ struct GoogleMapsLauncher: MapsLaunching {
 struct PreviewMapsLauncher: MapsLaunching {
     var canOpenGoogleMaps: Bool { get async { true } }
     func openInAppleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool { true }
-    func openInGoogleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool { true }
+    func openInGoogleMaps(origin: Coordinate?, stop: FuelStop, destination: DestinationSearchResult) async -> Bool { true }
 }
 
 struct PrintLogger: ClientLogging {

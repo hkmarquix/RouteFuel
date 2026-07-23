@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>AIServiceURL</key>
-	<string>http://devaiservices.traland.com/api/routefuel</string>
+	<string>https://aiservices.traland.com/api/routefuel</string>
 	<key>AuthToken</key>
 	<string>uwe7892sdfjxzcv98092134jskd</string>
 </dict>

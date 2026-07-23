@@ -20,27 +20,53 @@ struct RouteFuelTests {
         #expect(results.first?.countryCode == "GB")
     }
 
-    @Test func googleMapsDeepLinkUsesCanonicalFormat() {
+    @Test func googleMapsDeepLinkWithCurrentLocationUsesCurrentLocationText() {
         let waypoint = Coordinate(lat: 52.4862, lng: -1.8904)
         let destination = Coordinate(lat: 53.4808, lng: -2.2426)
 
-        let url = GoogleMapsDeepLinkBuilder.url(waypoint: waypoint, destination: destination)
+        let url = GoogleMapsDeepLinkBuilder.url(origin: nil, waypoint: waypoint, destination: destination)
 
         #expect(
             url?.absoluteString
-                == "comgooglemaps:?saddr=Current%20Location&daddr=52.486200,-1.890400+to:53.480800,-2.242600&directionsmode=driving"
+                == "comgooglemaps://?saddr=Current%20Location&daddr=52.486200,-1.890400+to:53.480800,-2.242600&directionsmode=driving"
         )
     }
 
-    @Test func googleMapsWebFallbackUsesDirectionsFormat() {
+    @Test func googleMapsDeepLinkWithCustomOriginUsesCoordinate() {
+        let origin = Coordinate(lat: 51.5074, lng: -0.1278)
         let waypoint = Coordinate(lat: 52.4862, lng: -1.8904)
         let destination = Coordinate(lat: 53.4808, lng: -2.2426)
 
-        let url = GoogleMapsDeepLinkBuilder.webURL(waypoint: waypoint, destination: destination)
+        let url = GoogleMapsDeepLinkBuilder.url(origin: origin, waypoint: waypoint, destination: destination)
+
+        #expect(
+            url?.absoluteString
+                == "comgooglemaps://?saddr=51.507400,-0.127800&daddr=52.486200,-1.890400+to:53.480800,-2.242600&directionsmode=driving"
+        )
+    }
+
+    @Test func googleMapsWebFallbackWithCurrentLocationUsesCurrentLocationText() {
+        let waypoint = Coordinate(lat: 52.4862, lng: -1.8904)
+        let destination = Coordinate(lat: 53.4808, lng: -2.2426)
+
+        let url = GoogleMapsDeepLinkBuilder.webURL(origin: nil, waypoint: waypoint, destination: destination)
 
         #expect(
             url?.absoluteString
                 == "https://www.google.com/maps/dir/?api=1&origin=Current%20Location&destination=53.480800,-2.242600&waypoints=52.486200,-1.890400&travelmode=driving"
+        )
+    }
+
+    @Test func googleMapsWebFallbackWithCustomOriginUsesCoordinate() {
+        let origin = Coordinate(lat: 51.5074, lng: -0.1278)
+        let waypoint = Coordinate(lat: 52.4862, lng: -1.8904)
+        let destination = Coordinate(lat: 53.4808, lng: -2.2426)
+
+        let url = GoogleMapsDeepLinkBuilder.webURL(origin: origin, waypoint: waypoint, destination: destination)
+
+        #expect(
+            url?.absoluteString
+                == "https://www.google.com/maps/dir/?api=1&origin=51.507400,-0.127800&destination=53.480800,-2.242600&waypoints=52.486200,-1.890400&travelmode=driving"
         )
     }
 
@@ -216,7 +242,7 @@ struct RouteFuelTests {
 
         let configuration = EndpointConfiguration.live()
 
-        #expect(configuration.apiBaseURL.absoluteString == "http://devaiservices.traland.com/api/routefuel")
+        #expect(configuration.apiBaseURL.absoluteString == "https://aiservices.traland.com/api/routefuel")
         #expect(configuration.routeFuelAPIKey == "uwe7892sdfjxzcv98092134jskd")
         #expect(configuration.routeRequestTimeoutSeconds == 30)
         #expect(configuration.fuelStopRequestTimeoutSeconds == 250)
@@ -295,6 +321,59 @@ struct RouteFuelTests {
         #expect(capturedOrigin == origin.coordinate)
         #expect(await locationService.callCount == 0)
     }
+
+    @Test func openInGoogleMapsPassesNilOriginWhenUsingCurrentLocation() async {
+        let route = makeRoute()
+        let stop = makeStop()
+        let launcher = RecordingMapsLauncher(results: [true], delayNanoseconds: 0)
+        let dependencies = AppDependencies(
+            destinationSearchService: StubDestinationSearchService(),
+            routeService: StubRouteService(route: route),
+            fuelStopService: StubFuelStopService(),
+            locationService: StubLocationService(),
+            mapsLauncher: launcher,
+            logger: SpyLogger()
+        )
+
+        let viewModel = RoutePlannerViewModel(dependencies: dependencies)
+        viewModel.selectDestination(route.destination)
+        await viewModel.calculateRoute()
+        viewModel.selectStop(stop)
+        await viewModel.openInGoogleMaps()
+
+        #expect(await launcher.googleMapsCallMade == true)
+        #expect(await launcher.lastGoogleMapsOrigin == nil)
+    }
+
+    @Test func openInGoogleMapsPassesCoordinateWhenUsingCustomOrigin() async {
+        let route = makeRoute()
+        let stop = makeStop()
+        let launcher = RecordingMapsLauncher(results: [true], delayNanoseconds: 0)
+        let customOrigin = DestinationSearchResult(
+            id: UUID(),
+            label: "Leeds, UK",
+            coordinate: Coordinate(lat: 53.8008, lng: -1.5491),
+            countryCode: "GB"
+        )
+        let dependencies = AppDependencies(
+            destinationSearchService: StubDestinationSearchService(),
+            routeService: StubRouteService(route: route),
+            fuelStopService: StubFuelStopService(),
+            locationService: StubLocationService(),
+            mapsLauncher: launcher,
+            logger: SpyLogger()
+        )
+
+        let viewModel = RoutePlannerViewModel(dependencies: dependencies)
+        viewModel.selectOrigin(customOrigin)
+        viewModel.selectDestination(route.destination)
+        await viewModel.calculateRoute()
+        viewModel.selectStop(stop)
+        await viewModel.openInGoogleMaps()
+
+        #expect(await launcher.googleMapsCallMade == true)
+        #expect(await launcher.lastGoogleMapsOrigin == customOrigin.coordinate)
+    }
 }
 
 private func restoreEnvironmentVariable(_ name: String, to previousValue: String?) {
@@ -342,7 +421,7 @@ private struct StubLocationService: LocationServicing {
 private struct StubMapsLauncher: MapsLaunching {
     var canOpenGoogleMaps: Bool { get async { true } }
     func openInAppleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool { true }
-    func openInGoogleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool { true }
+    func openInGoogleMaps(origin: Coordinate?, stop: FuelStop, destination: DestinationSearchResult) async -> Bool { true }
 }
 
 private actor RecordingRouteService: RouteServicing {
@@ -374,6 +453,8 @@ private actor RecordingMapsLauncher: MapsLaunching {
     private let delayNanoseconds: UInt64
     private var index = 0
     private(set) var callCount = 0
+    private(set) var lastGoogleMapsOrigin: Coordinate?
+    private(set) var googleMapsCallMade = false
 
     init(results: [Bool], delayNanoseconds: UInt64) {
         self.results = results
@@ -388,8 +469,10 @@ private actor RecordingMapsLauncher: MapsLaunching {
         true
     }
 
-    func openInGoogleMaps(origin: Coordinate, stop: FuelStop, destination: DestinationSearchResult) async -> Bool {
+    func openInGoogleMaps(origin: Coordinate?, stop: FuelStop, destination: DestinationSearchResult) async -> Bool {
         callCount += 1
+        lastGoogleMapsOrigin = origin
+        googleMapsCallMade = true
 
         if delayNanoseconds > 0 {
             try? await Task.sleep(nanoseconds: delayNanoseconds)
