@@ -1,8 +1,17 @@
 .DS_Store
+**/.DS_Store
 
 # Xcode user-specific files
 xcuserdata/
 *.xcuserstate
 
+# Xcode build output
+build/
+DerivedData/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+
 # Local scratch files
 temp/
+
+# Local screenshots
+Screenshot/
