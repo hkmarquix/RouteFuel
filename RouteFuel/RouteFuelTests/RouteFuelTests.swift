@@ -374,6 +374,75 @@ struct RouteFuelTests {
         #expect(await launcher.googleMapsCallMade == true)
         #expect(await launcher.lastGoogleMapsOrigin == customOrigin.coordinate)
     }
+
+    @Test func brandDetectionMatchesKnownNamesAndWordTokens() {
+        #expect(FuelBrand.detect(from: "SHELL THIRSK") == .shell)
+        #expect(FuelBrand.detect(from: "BP Connect A19") == .bp)
+        #expect(FuelBrand.detect(from: "Esso Northallerton") == .esso)
+        #expect(FuelBrand.detect(from: "Sainsbury's Petrol Station") == .sainsburys)
+        // "BP" must be a whole token, not a substring of another word.
+        #expect(FuelBrand.detect(from: "Compbell Services") == .other)
+        #expect(FuelBrand.detect(from: "Motorway Services South") == .other)
+    }
+
+    @Test func filteredStopsAppliesActiveBrandFilter() async {
+        let viewModel = await makeViewModelWithBrandedStops()
+
+        #expect(viewModel.filteredStops.count == 3)
+
+        viewModel.toggleBrandFilter(.shell)
+        #expect(viewModel.selectedBrandFilter == .shell)
+        #expect(viewModel.filteredStops.map(\.brand) == [.shell])
+
+        // A brand not present yields an empty (honest) result set.
+        viewModel.toggleBrandFilter(.tesco)
+        #expect(viewModel.selectedBrandFilter == .tesco)
+        #expect(viewModel.filteredStops.isEmpty)
+
+        viewModel.clearBrandFilter()
+        #expect(viewModel.selectedBrandFilter == nil)
+        #expect(viewModel.filteredStops.count == 3)
+    }
+
+    @Test func toggleBrandFilterDeselectsHiddenStop() async {
+        let viewModel = await makeViewModelWithBrandedStops()
+        let bpStop = viewModel.filteredStops.first { $0.brand == .bp }
+        #expect(bpStop != nil)
+
+        viewModel.selectStop(bpStop!)
+        #expect(viewModel.tripPlan?.selectedStop == bpStop)
+
+        viewModel.toggleBrandFilter(.shell)
+        #expect(viewModel.tripPlan?.selectedStop == nil)
+    }
+
+    @Test func brandFilterKeepsSelectionWhenStopStillVisible() async {
+        let viewModel = await makeViewModelWithBrandedStops()
+        let shellStop = viewModel.filteredStops.first { $0.brand == .shell }
+        #expect(shellStop != nil)
+
+        viewModel.selectStop(shellStop!)
+        viewModel.toggleBrandFilter(.shell)
+        #expect(viewModel.tripPlan?.selectedStop == shellStop)
+    }
+}
+
+@MainActor
+private func makeViewModelWithBrandedStops() async -> RoutePlannerViewModel {
+    let route = makeRoute()
+    let dependencies = AppDependencies(
+        destinationSearchService: StubDestinationSearchService(),
+        routeService: StubRouteService(route: route),
+        fuelStopService: MultiBrandFuelStopService(),
+        locationService: StubLocationService(),
+        mapsLauncher: StubMapsLauncher(),
+        logger: SpyLogger()
+    )
+
+    let viewModel = RoutePlannerViewModel(dependencies: dependencies)
+    viewModel.selectDestination(route.destination)
+    await viewModel.calculateRoute()
+    return viewModel
 }
 
 private func restoreEnvironmentVariable(_ name: String, to previousValue: String?) {
@@ -408,6 +477,36 @@ private struct FailingFuelStopService: FuelStopServicing {
     let error: APIServiceError
 
     func recommendedStops(for route: Route) async throws -> [FuelStop] { throw error }
+}
+
+private struct MultiBrandFuelStopService: FuelStopServicing {
+    func recommendedStops(for route: Route) async throws -> [FuelStop] {
+        [
+            makeBrandedStop(name: "Shell Thirsk", stationId: "st_shell", rank: 1, isBest: true),
+            makeBrandedStop(name: "BP Connect A19", stationId: "st_bp", rank: 2, isBest: false),
+            makeBrandedStop(name: "Esso Northallerton", stationId: "st_esso", rank: 3, isBest: false)
+        ]
+    }
+}
+
+private func makeBrandedStop(name: String, stationId: String, rank: Int, isBest: Bool) -> FuelStop {
+    FuelStop(
+        id: UUID(),
+        stationId: stationId,
+        name: name,
+        address: "\(name) Forecourt",
+        countryCode: "GB",
+        coordinate: Coordinate(lat: 54.0 + Double(rank) * 0.01, lng: -1.3),
+        fuelType: "regular",
+        priceMinorUnits: 140 + rank,
+        currency: "GBP",
+        priceTimestamp: "2026-04-01T08:00:00Z",
+        distanceFromRouteMeters: 900 + rank * 100,
+        detourDurationSeconds: 300 + rank * 60,
+        score: Double(rank) * 0.1,
+        rank: rank,
+        isBestStop: isBest
+    )
 }
 
 private struct StubLocationService: LocationServicing {

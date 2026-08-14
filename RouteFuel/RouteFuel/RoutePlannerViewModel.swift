@@ -16,6 +16,7 @@ final class RoutePlannerViewModel: ObservableObject {
     @Published private(set) var blockingMessage: BlockingMessage?
     @Published private(set) var zeroResultsVisible = false
     @Published private(set) var tripPlan: TripPlan?
+    @Published private(set) var selectedBrandFilter: FuelBrand?
     @Published private(set) var canOpenGoogleMaps = false
     @Published private(set) var appleMapsOpening = false
     @Published private(set) var googleMapsOpening = false
@@ -258,6 +259,7 @@ final class RoutePlannerViewModel: ObservableObject {
 
         recommendationsLoading = true
         blockingMessage = nil
+        selectedBrandFilter = nil
 
         if var tripPlan {
             tripPlan.recommendedStops = []
@@ -282,6 +284,33 @@ final class RoutePlannerViewModel: ObservableObject {
         guard var tripPlan else { return }
         tripPlan.selectedStop = stop
         self.tripPlan = tripPlan
+    }
+
+    /// Recommended stops after the active brand filter is applied.
+    /// `nil` filter means show every stop.
+    var filteredStops: [FuelStop] {
+        guard let stops = tripPlan?.recommendedStops else { return [] }
+        guard let selectedBrandFilter else { return stops }
+        return stops.filter { $0.brand == selectedBrandFilter }
+    }
+
+    func toggleBrandFilter(_ brand: FuelBrand) {
+        selectedBrandFilter = selectedBrandFilter == brand ? nil : brand
+        pruneSelectionForActiveFilter()
+    }
+
+    func clearBrandFilter() {
+        guard selectedBrandFilter != nil else { return }
+        selectedBrandFilter = nil
+    }
+
+    /// Deselect the current stop if the active filter now hides it.
+    private func pruneSelectionForActiveFilter() {
+        guard var plan = tripPlan, let selected = plan.selectedStop else { return }
+        if !filteredStops.contains(selected) {
+            plan.selectedStop = nil
+            tripPlan = plan
+        }
     }
 
     func openInGoogleMaps() async {
@@ -370,6 +399,7 @@ final class RoutePlannerViewModel: ObservableObject {
 
     func resetTrip() {
         tripPlan = nil
+        selectedBrandFilter = nil
         recommendationsLoading = false
         blockingMessage = nil
         appleMapsOpening = false

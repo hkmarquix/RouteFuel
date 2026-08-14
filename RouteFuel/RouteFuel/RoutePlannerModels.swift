@@ -93,6 +93,76 @@ struct FuelStop: Identifiable, Equatable, Sendable {
     var detourText: String {
         "\(detourDurationSeconds / 60) min detour"
     }
+
+    /// Best-effort brand, derived from the station name (the backend has no brand field).
+    var brand: FuelBrand { FuelBrand.detect(from: name) }
+}
+
+enum FuelBrand: String, CaseIterable, Sendable, Identifiable {
+    case shell
+    case bp
+    case esso
+    case texaco
+    case tesco
+    case sainsburys
+    case asda
+    case morrisons
+    case gulf
+    case jet
+    case other
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .shell: return "Shell"
+        case .bp: return "BP"
+        case .esso: return "Esso"
+        case .texaco: return "Texaco"
+        case .tesco: return "Tesco"
+        case .sainsburys: return "Sainsbury's"
+        case .asda: return "Asda"
+        case .morrisons: return "Morrisons"
+        case .gulf: return "Gulf"
+        case .jet: return "Jet"
+        case .other: return "Other"
+        }
+    }
+
+    /// Uppercased word tokens that identify this brand inside a free-text station name.
+    private var matchTokens: Set<String> {
+        switch self {
+        case .shell: return ["SHELL"]
+        case .bp: return ["BP"]
+        case .esso: return ["ESSO"]
+        case .texaco: return ["TEXACO"]
+        case .tesco: return ["TESCO"]
+        case .sainsburys: return ["SAINSBURY", "SAINSBURYS"]
+        case .asda: return ["ASDA"]
+        case .morrisons: return ["MORRISON", "MORRISONS"]
+        case .gulf: return ["GULF"]
+        case .jet: return ["JET"]
+        case .other: return []
+        }
+    }
+
+    /// Brands offered as filter chips, in display order (excludes `.other`).
+    static let filterable: [FuelBrand] = allCases.filter { $0 != .other }
+
+    /// Best-effort brand detection from a station name. Matches on whole word tokens
+    /// so short brands like "BP" don't match inside unrelated words. Returns the first
+    /// brand in `filterable` order, or `.other` when nothing matches.
+    static func detect(from name: String) -> FuelBrand {
+        let tokens = Set(
+            name.uppercased()
+                .split { !($0.isLetter || $0.isNumber) }
+                .map(String.init)
+        )
+        for brand in filterable where !brand.matchTokens.isDisjoint(with: tokens) {
+            return brand
+        }
+        return .other
+    }
 }
 
 struct TripPlan: Equatable, Sendable {
@@ -137,6 +207,7 @@ enum APIErrorCode: String, Sendable, CaseIterable {
     case invalidRouteRequestFields = "INVALID_ROUTE_REQUEST_FIELDS"
     case invalidCoordinates = "INVALID_COORDINATES"
     case invalidDestination = "INVALID_DESTINATION"
+    case invalidRoutePolyline = "INVALID_ROUTE_POLYLINE"
     case outOfScopeGeography = "OUT_OF_SCOPE_GEOGRAPHY"
     case unsupportedMode = "UNSUPPORTED_MODE"
     case routeNotFound = "ROUTE_NOT_FOUND"

@@ -115,59 +115,121 @@ struct ResultsView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(trip.recommendedStops) { stop in
-                            Button {
-                                viewModel.selectStop(stop)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(alignment: .top) {
-                                        Text(stop.name)
-                                            .font(.headline)
-                                            .foregroundStyle(.primary)
-                                            .multilineTextAlignment(.leading)
-                                            .lineLimit(2)
+                brandFilterRow
 
-                                        Spacer(minLength: 8)
-
-                                        if stop.isBestStop {
-                                            Text("Best Stop")
-                                                .font(.caption.weight(.semibold))
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 6)
-                                                .background(Color.green.opacity(0.18), in: Capsule())
-                                        }
-                                    }
-
-                                    Text(stop.address)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-
-                                    Text("\(stop.priceText) • \(stop.detourText)")
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(.primary)
-
-                                    Text(trip.selectedStop == stop ? "Selected • Rank #\(stop.rank)" : "Tap to select • Rank #\(stop.rank)")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(trip.selectedStop == stop ? Color.green : .secondary)
-                                }
-                                .padding(16)
-                                .frame(width: 250, alignment: .leading)
-                                .background(
-                                    trip.selectedStop == stop ? Color.green.opacity(0.14) : Color(.systemBackground).opacity(0.92),
-                                    in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                )
+                let stops = viewModel.filteredStops
+                if stops.isEmpty {
+                    Text(noBrandMatchText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("brand-filter-empty")
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(stops) { stop in
+                                stopCard(stop)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.vertical, 2)
                     }
-                    .padding(.vertical, 2)
                 }
             }
         }
         .panelStyle()
+    }
+
+    private var noBrandMatchText: String {
+        let brand = viewModel.selectedBrandFilter?.displayName ?? ""
+        return "No \(brand) stations among the cheapest stops on this route."
+    }
+
+    private var brandFilterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                brandChip(title: "All", isSelected: viewModel.selectedBrandFilter == nil) {
+                    viewModel.clearBrandFilter()
+                }
+                .accessibilityIdentifier("brand-filter-all")
+
+                ForEach(FuelBrand.filterable) { brand in
+                    brandChip(title: brand.displayName, isSelected: viewModel.selectedBrandFilter == brand) {
+                        viewModel.toggleBrandFilter(brand)
+                    }
+                    .accessibilityIdentifier("brand-filter-\(brand.rawValue)")
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func brandChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    isSelected ? Color(red: 0.12, green: 0.43, blue: 0.31) : Color.black.opacity(0.06),
+                    in: Capsule()
+                )
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func stopCard(_ stop: FuelStop) -> some View {
+        Button {
+            viewModel.selectStop(stop)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top) {
+                    Text(stop.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+
+                    Spacer(minLength: 8)
+
+                    if stop.isBestStop {
+                        Text("Best Stop")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.green.opacity(0.18), in: Capsule())
+                    }
+                }
+
+                if stop.brand != .other {
+                    Text(stop.brand.displayName)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.14), in: Capsule())
+                        .accessibilityIdentifier("stop-brand-\(stop.brand.rawValue)")
+                }
+
+                Text(stop.address)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                Text("\(stop.priceText) • \(stop.detourText)")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+
+                Text(trip.selectedStop == stop ? "Selected • Rank #\(stop.rank)" : "Tap to select • Rank #\(stop.rank)")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(trip.selectedStop == stop ? Color.green : .secondary)
+            }
+            .padding(16)
+            .frame(width: 250, alignment: .leading)
+            .background(
+                trip.selectedStop == stop ? Color.green.opacity(0.14) : Color(.systemBackground).opacity(0.92),
+                in: RoundedRectangle(cornerRadius: 22, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
