@@ -37,7 +37,7 @@ The full MVP endpoints are therefore:
 4. Transport mode: driving only.
 5. Ranking inputs: `priceMinorUnits` and `detourDurationSeconds` only.
 6. Ranking execution: backend only.
-7. Route corridor threshold: 2,000 meters from the route polyline.
+7. Route corridor threshold: configurable via `ROUTEFUEL_CORRIDOR_METERS`, default 5,000 meters from the route polyline. (With real client road geometry a tight 2,000 m band leaves rural routes empty; the detour score ranks how far off-route each stop is.)
 8. Price freshness threshold: `priceTimestamp` no older than 24 hours at backend request time.
 9. Missing or stale price data: excluded from recommendations.
 10. `priceMinorUnits` is integer pence.
@@ -89,19 +89,25 @@ Calculate a driving route from current location to destination.
     "lng": -1.8904,
     "label": "Birmingham"
   },
-  "mode": "driving"
+  "mode": "driving",
+  "routePolyline": "…encoded road polyline (optional)…"
 }
 ```
 
 ### 6.3 Request Rules
 
-1. After common JSON body checks pass, the top-level keys must be exactly `origin`, `destination`, `mode`.
+1. After common JSON body checks pass, the top-level keys must be a subset of `origin`, `destination`, `mode`, `routePolyline`, and must include `origin`, `destination`, `mode`. `routePolyline` is optional.
 2. `origin` keys must be exactly `lat`, `lng`.
 3. `destination` keys must be exactly `lat`, `lng`, `label`.
 4. `origin.lat`, `origin.lng`, `destination.lat`, and `destination.lng` are required numeric coordinates in valid ranges.
 5. `destination.label` is required and must be a non-empty string after trimming.
 6. `mode` is required and must equal `driving`.
 7. If either origin or destination is outside supported geography under `uk_boundary_v1`, return `OUT_OF_SCOPE_GEOGRAPHY`.
+8. `routePolyline`, when present, is the client's on-device (MapKit) road geometry as a Google-encoded polyline at precision `5`. It lets the backend build the fuel-stop corridor from the real road rather than a straight origin→destination line. When present it must:
+   - be a non-empty string that decodes to between 2 and 20000 points,
+   - have its first point within 5,000 meters of `origin` and its last point within 5,000 meters of `destination` (else `INVALID_ROUTE_POLYLINE`),
+   - have every point inside supported geography under `uk_boundary_v1` (else `OUT_OF_SCOPE_GEOGRAPHY`).
+   When absent, the backend falls back to a straight origin→destination line (sparser corridor). The stored route geometry — and therefore the `polyline` in the success response and the corridor used by `POST /v1/fuel-stops/search` — is the supplied road polyline when valid, otherwise the straight line.
 
 ### 6.4 Unknown Field Mapping
 
@@ -224,7 +230,7 @@ Return ranked route-aware fuel stop recommendations for a route.
     "singleEligibleStationScore": 0.0,
     "equalValueComponentScore": 0.0,
     "scoreScale": "numeric_rounded_3dp",
-    "routeCorridorMeters": 2000,
+    "routeCorridorMeters": 5000,
     "priceFreshnessHours": 24
   }
 }
@@ -287,7 +293,7 @@ Return ranked route-aware fuel stop recommendations for a route.
 29. `rankingExplanation.singleEligibleStationScore` must equal `0.0`.
 30. `rankingExplanation.equalValueComponentScore` must equal `0.0`.
 31. `rankingExplanation.scoreScale` must equal `numeric_rounded_3dp`.
-32. `rankingExplanation.routeCorridorMeters` must equal `2000`.
+32. `rankingExplanation.routeCorridorMeters` must be a positive integer echoing the configured corridor width (default `5000`).
 33. `rankingExplanation.priceFreshnessHours` must equal `24`.
 
 ### 7.7 Error Responses
@@ -308,7 +314,7 @@ Return ranked route-aware fuel stop recommendations for a route.
 3. Compute `detourDurationSeconds = max(0, waypointDurationSeconds - baselineDurationSeconds)`.
 4. `detourDurationSeconds` excludes any fueling dwell time, parking time, or user stop duration. It represents driving-time increase only.
 5. Build the eligible candidate set for the route by applying all of these filters before scoring:
-   - station is within 2,000 meters of the route polyline
+   - station is within the configured corridor (default 5,000 meters) of the route polyline
    - station is inside supported geography under `uk_boundary_v1`
    - station `countryCode = GB`
    - station has `priceTimestamp` no older than 24 hours at backend request time
@@ -361,6 +367,7 @@ Rules:
    - `INVALID_ROUTE_REQUEST_FIELDS`
    - `INVALID_COORDINATES`
    - `INVALID_DESTINATION`
+   - `INVALID_ROUTE_POLYLINE`
    - `OUT_OF_SCOPE_GEOGRAPHY`
    - `UNSUPPORTED_MODE`
    - `ROUTE_NOT_FOUND`

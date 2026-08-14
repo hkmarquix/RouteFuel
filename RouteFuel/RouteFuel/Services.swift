@@ -463,23 +463,35 @@ final class LiveRouteService: RouteServicing {
     }
 
     func calculateRoute(origin: Coordinate, destination: DestinationSearchResult) async throws -> Route {
+        // Compute the real road route on-device (MapKit) first, so we can hand
+        // its geometry to the backend. The backend measures its fuel-stop
+        // corridor against this polyline, so on-route stops are matched rather
+        // than only those near a straight origin->destination line.
+        let displayRoute = try await calculateDisplayRoute(origin: origin, destination: destination)
+
+        var body: [String: Any] = [
+            "origin": ["lat": origin.lat, "lng": origin.lng],
+            "destination": [
+                "lat": destination.coordinate.lat,
+                "lng": destination.coordinate.lng,
+                "label": destination.label
+            ],
+            "mode": "driving"
+        ]
+
+        if let displayRoute {
+            body["routePolyline"] = displayRoute.polyline
+        }
+
         let payload = try await client.post(
             path: "/v1/routes",
-            body: [
-                "origin": ["lat": origin.lat, "lng": origin.lng],
-                "destination": [
-                    "lat": destination.coordinate.lat,
-                    "lng": destination.coordinate.lng,
-                    "label": destination.label
-                ],
-                "mode": "driving"
-            ],
+            body: body,
             timeoutInterval: requestTimeoutSeconds
         )
 
         let backendRoute = try RouteResponseValidator.validate(payload: payload, origin: origin, destination: destination)
 
-        guard let displayRoute = try await calculateDisplayRoute(origin: origin, destination: destination) else {
+        guard let displayRoute else {
             return backendRoute
         }
 
@@ -744,7 +756,9 @@ enum FuelStopsResponseValidator {
               doubleValue(rankingExplanation["singleEligibleStationScore"]) == 0.0,
               doubleValue(rankingExplanation["equalValueComponentScore"]) == 0.0,
               rankingExplanation["scoreScale"] as? String == "numeric_rounded_3dp",
-              rankingExplanation["routeCorridorMeters"] as? Int == 2000,
+              // Corridor width is a server-side tuning value (configurable); the
+              // client validates it is a sane positive integer, not a fixed value.
+              (rankingExplanation["routeCorridorMeters"] as? Int).map { $0 > 0 && $0 <= 100_000 } == true,
               rankingExplanation["priceFreshnessHours"] as? Int == 24
         else {
             throw APIServiceError.invalidSuccessResponse(requestId: payload.requestId)

@@ -53,7 +53,7 @@ To keep scope minimal and testable, MVP is fixed to:
 7. Recommendation count: 1 to 3 stops
 8. Ranking inputs: `priceMinorUnits` and `detourDurationSeconds` only
 9. Ranking execution: backend only
-10. Route corridor threshold: 2,000 meters from the route polyline
+10. Route corridor threshold: server-configurable, default 5,000 meters from the route polyline
 11. Price freshness threshold: `priceTimestamp` no older than 24 hours at backend request time
 12. Missing or stale price data: excluded from recommendations
 13. API price field: `priceMinorUnits` integer pence
@@ -203,7 +203,7 @@ The MVP must reduce that manual work by giving the user a route-aware fuel recom
 ### 7.4 Route Request Behavior And Stale Data Rules
 
 1. The Search Screen is the sole owner of route loading UI, route error UI, and route logging until a route response succeeds.
-2. The app must send exactly one `POST /v1/routes` request for each route-calculation user action.
+2. The app must send exactly one `POST /v1/routes` request for each route-calculation user action. The app computes the driving route on-device (MapKit) first and, when that succeeds, includes its encoded road polyline as the request's optional `routePolyline` field so the backend builds the fuel-stop corridor from the real road rather than a straight line. If on-device routing yields no route, the app omits `routePolyline` and the backend falls back to a straight origin→destination line.
 3. The app must not send any fuel-stop request until the route request succeeds.
 4. While `POST /v1/routes` is in flight, the app must show visible loading text `Calculating route...` on the Search Screen.
 5. While `POST /v1/routes` is in flight, additional route-start taps and retry taps must be ignored.
@@ -846,7 +846,7 @@ Success response:
     "singleEligibleStationScore": 0.0,
     "equalValueComponentScore": 0.0,
     "scoreScale": "numeric_rounded_3dp",
-    "routeCorridorMeters": 2000,
+    "routeCorridorMeters": 5000,
     "priceFreshnessHours": 24
   }
 }
@@ -909,7 +909,7 @@ Success rules:
 29. `rankingExplanation.singleEligibleStationScore` must equal `0.0`.
 30. `rankingExplanation.equalValueComponentScore` must equal `0.0`.
 31. `rankingExplanation.scoreScale` must equal `numeric_rounded_3dp`.
-32. `rankingExplanation.routeCorridorMeters` must equal `2000`.
+32. `rankingExplanation.routeCorridorMeters` must be a positive integer (the server-configured corridor width, default `5000`); the app validates it is a sane positive integer rather than a fixed value.
 33. `rankingExplanation.priceFreshnessHours` must equal `24`.
 
 Error responses:
@@ -931,7 +931,7 @@ Error responses:
 4. `detourDurationSeconds` excludes any fueling dwell time, parking time, or user stop duration. It represents driving-time increase only.
 5. The user-facing detour minutes displayed by the client must be derived only from this `detourDurationSeconds` value using `floor(detourDurationSeconds / 60)`.
 6. Build the eligible candidate set for the route by applying all of these filters before scoring:
-   - station is within 2,000 meters of the route polyline
+   - station is within the configured corridor (default 5,000 meters) of the route polyline
    - station is inside supported geography under `uk_boundary_v1`
    - station `countryCode = GB`
    - station has `priceTimestamp` no older than 24 hours at backend request time
@@ -962,7 +962,7 @@ Error responses:
 
 Backend conformance rules enforced by API tests:
 
-1. Only stations within 2,000 meters of the route polyline are eligible.
+1. Only stations within the configured corridor (default 5,000 meters) of the route polyline are eligible.
 2. Only stations inside supported geography under `uk_boundary_v1` are eligible.
 3. Only stations with `countryCode = GB` are eligible.
 4. Only stations with `priceTimestamp` no older than 24 hours at backend request time are eligible.
@@ -1136,7 +1136,7 @@ The app must provide explicit UI states for:
 20. `POST /v1/fuel-stops/search` returns 1 to 3 stops for a valid route with eligible stations.
 21. `POST /v1/fuel-stops/search` returns unique `stationId` values, ascending consecutive ranks, exactly one `rank = 1`, and exactly one `isBestStop = true` on that same stop, and includes `isBestStop` on every returned stop.
 22. `POST /v1/fuel-stops/search` enforces `countryCode = GB`, valid location ranges, `fuelType = regular`, `currency = GBP`, integer `priceMinorUnits >= 0`, RFC 3339 UTC `priceTimestamp`, integer `distanceFromRouteMeters >= 0`, and integer `detourDurationSeconds >= 0`.
-23. `POST /v1/fuel-stops/search` excludes stations more than 2,000 meters from the route polyline.
+23. `POST /v1/fuel-stops/search` excludes stations more than the configured corridor (default 5,000 meters) from the route polyline.
 24. `POST /v1/fuel-stops/search` excludes stations outside supported geography under `uk_boundary_v1`.
 25. `POST /v1/fuel-stops/search` excludes stations whose `countryCode != GB`.
 26. `POST /v1/fuel-stops/search` excludes stations older than the 24-hour freshness threshold at backend request time.
